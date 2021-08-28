@@ -22,7 +22,7 @@ class tui {
    private:
       terminal* rt;
    public:
-      tui(rterm* newrt);
+      tui(terminal* newrt);
 
       void moveCursorToTop();
       void moveCursorToBottom();
@@ -42,7 +42,7 @@ class tui {
 /**
  * @constructs tui
  */
-tui::tui(rterm* newrt) {
+tui::tui(terminal* newrt) {
    rt = newrt;
 }
 
@@ -109,9 +109,12 @@ void tui::scrollDown() {
 void tui::drawFunctionLabels(const string labels[8]) {
    rt->saveCursor();
 
+   size_t labellength = (rt->cols * 1) / 8 - 1;
+
    for (size_t i = 0; i < 8; i++) {
       rt->moveCursor(rt->lines - 1, (rt->cols * i) / 8);
-      cout << labels[i];
+      // prepend a space unless it's long enough to fill the whole label space
+      cout << (labels[i].length() >= labellength ? labels[i] : (" " + labels[i]));
    }
 
    rt->restoreCursor();

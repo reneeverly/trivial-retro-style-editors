@@ -49,6 +49,8 @@ using namespace std;
 //#define KEY_RSRVD 14
 #define KEY_ENT 15
 
+#define LITERAL_KEY_ESCAPE 27
+
 /**
  * @function getch
  * Gets a single keypress/character from the input buffer and

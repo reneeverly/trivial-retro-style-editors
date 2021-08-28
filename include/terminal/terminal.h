@@ -26,6 +26,8 @@
 #include <stdexcept>
 #include <stack>
 #include <sstream>
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 using namespace std;
 
@@ -130,11 +132,11 @@ string terminal::exec(const char* cmd) {
  */
 bool terminal::updateDimensions() {
    try {
-      string sCols = exec("tput cols");
-      string sLines = exec("tput lines");
-      
-      cols = stoi(sCols);
-      lines = stoi(sLines);
+      struct winsize dimensions;
+      ioctl(STDOUT_FILENO, TIOCGWINSZ, &dimensions);
+
+      cols = dimensions.ws_col;
+      lines = dimensions.ws_row;
    } catch(...) {
       return false;
    }
