@@ -48,6 +48,14 @@ using namespace std;
 #define KEY_F10 13 // not present on the TRS-80 Model 100
 //#define KEY_RSRVD 14
 #define KEY_ENT 15
+#define KEY_HOME 16
+#define KEY_END 17
+#define KEY_PGUP 18
+#define KEY_PGDN 19
+#define KEY_SHIFT_LEFT 20
+#define KEY_SHIFT_RIGHT 21
+#define KEY_DELETE 22
+//#define KEY 23
 
 #define LITERAL_KEY_ESCAPE 27
 
@@ -62,12 +70,34 @@ int getch() {
    int ch;
    tcgetattr(STDIN_FILENO, &oldattr);
    newattr = oldattr;
+   //newattr.c_lflag &= ~(ICANON | ECHO);
+
+   // disable line-reading, echoing, ctrlc & ctrlz & ctrly, ctrlv
+   newattr.c_lflag &= ~(ICANON | ECHO | ISIG | IEXTEN);
+   // disable terminal translation
+   newattr.c_oflag &= ~(OPOST);
+   // disable cr translation, ctrls & ctrlq
+   newattr.c_iflag &= ~(ICRNL | IXON);
+   
+   tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
+   ch = getchar();
+   //read(STDIN_FILENO, &ch, 1);
+   tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
+   return ch;
+}
+/*
+int getch() {
+   struct termios oldattr, newattr;
+   int ch;
+   tcgetattr(STDIN_FILENO, &oldattr);
+   newattr = oldattr;
    newattr.c_lflag &= ~(ICANON | ECHO);
    tcsetattr(STDIN_FILENO, TCSANOW, &newattr);
    ch = getchar();
    tcsetattr(STDIN_FILENO, TCSANOW, &oldattr);
    return ch;
 }
+*/
 
 /**
  * @function resolveEscapeSequence
@@ -91,41 +121,62 @@ int resolveEscapeSequence() {
       // f1     f2      f3      f4
       // f5     f6      f7      f8
       // f9     f10     rsrvd   enter
+      // home   end     pgup    pgdn
+      // shleft shright delete   rsrvd
 
       // vt100:
       "\x1BOA", "\x1BOB", "\x1BOC", "\x1BOD",
       "\x1BOP", "\x1BOQ", "\x1BOR", "\x1BOS",
       "\x1BOt", "\x1BOu", "\x1BOv", "\x1BOl",
       "\x1BOw", "\x1BOx", "", "\x1BOM",
+      "", "", "", "",
+      "", "", "", "",
 
       // rxvt:
       "\x1B[A", "\x1B[B", "\x1B[C", "\x1B[D",
       "\x1B[11~", "\x1B[12~", "\x1B[13~", "\x1B[14~",
       "\x1B[15~", "\x1B[17~", "\x1B[18~", "\x1B[19~",
       "\x1B[20~", "\x1B[21~", "", "\x1BOM",
+      "\x1B[7~", "\x1B[8~", "\x1B[5~", "\x1B[6~",
+      "\x1B[d", "\x1B[c", "\x1B[3~", "",
 
-      // A Raspberry Pi + IBM Model F setup produced different f1-f5 codes than expected:
+      // xterm-new
+      "\x1BOA", "\x1BOB", "\x1BOC", "\x1BOD",
+      "\x1BOP", "\x1BOQ", "\x1BOR", "\x1BOS",
+      "\x1B[15~", "\x1B[17~", "\x1B[18~", "\x1B[19~",
+      "\x1B[20~", "\x1B[21~", "", "\x1BOM",
+      "\x1BOH", "\x1BOF", "\x1B[5~", "\x1B[6~",
+      "\x1B[1;2D", "\x1B[1;2C", "\x1B[3~", "",
+
+      // Edge cases
       "", "", "", "",
-      "\x1B[[A", "\x1B[[B", "\x1B[[C", "\x1B[[D",
-      "\x1B[[E", "", "", "",
+      "\x1B[[A", "\x1B[[B", "\x1B[[C", "\x1B[[D", // Raspberry Pi
+      "\x1B[[E", "", "", "", // Raspberry Pi
+      "", "", "", "",
+      "\x1B[H", "\x1B[F", "", "", // MacOS
       "", "", "", ""
    };
-   
+
+   cout << "Sequence:";
+
    while (matches > 0) {
       matches = 0;
       
       // Get another character
       sequence += getch();
+      cout << sequence[sequence.length() - 1];
       
       for (size_t i = 0; i < (sizeof(candidates)/sizeof(candidates[0])); i++) {
          if (candidates[i].find(sequence) != string::npos) {
             matches++;
             if (candidates[i].length() == sequence.length()) {
-               return i % 16;
+               cout << endl;
+               return i % 24;
             }
          }
       }
    }
+   cout << " abort" << endl;
    return -1;
 }
 

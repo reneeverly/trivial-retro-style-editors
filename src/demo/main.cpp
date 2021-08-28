@@ -34,12 +34,21 @@ int main(void) {
 
       if (c && c != LITERAL_KEY_ESCAPE) {
          // do nothing
+         cout << (size_t) c << endl;
       } else {
          int resultant = resolveEscapeSequence();
 
          if (resultant == KEY_F8) {
             rt.resetTerminal();
             exit(0);
+         } else if (resultant == KEY_HOME) {
+            cout << "Home!" << endl;
+         } else if (resultant == KEY_END) {
+            cout << "End!" << endl;
+         } else if (resultant == KEY_PGUP) {
+            cout << "Page Up!" << endl;
+         } else if (resultant == KEY_PGDN) {
+            cout << "Page Down!" << endl;
          }
       }
    }
