@@ -19,19 +19,28 @@
 //#include "../../include/misc/basic_utf8.h"
 
 #include <vector>
+#include <sstream>
 
 using namespace std;
+
+// flags for the file edit / screen update loop
+#define UPDATE_NONE 0
+#define UPDATE_ALL 1
+#define UPDATE_LINE 2 // unimplemented
+#define UPDATE_SUBLINE 3
+
+#define SUGGEST_NONE 4
 
 terminal rt;
 tui ui(&rt);
 
+// Function prototypes
+void drawFunctionLabels();
+void updateDisplay(const size_t &startLine, const size_t &startCursor, const vector<string> &file);
+void updateLine(const size_t &screen_lines_from_top, const size_t &virtualCursorLine, const size_t &virtualCursorChar, vector<string> &file);
+
 int main(void) {
    rt.clear();
-
-   //ui.drawFunctionLabels("F1=Find", "F2=Load", "F3=Save", "", "F5=Copy", "F6=Cut", "F7=Select", "F8=Exit");
-   ui.drawFunctionLabels("", "", "", "", "", "", "", "F8=Exit");
-
-   rt.moveCursor(0, 0);
 
    vector<string> file;
 
@@ -42,16 +51,24 @@ int main(void) {
    size_t virtualCursorLine = 0;
    size_t virtualCursorChar = 0;
 
-   // Character input loop
+   int updateType;
+
+   // File editing loop
    int c;
    while(true) {
       c = getch();
+      
+      // by default, assume the whole screen has to be updated
+      updateType = UPDATE_ALL;
 
       if (c && c != LITERAL_KEY_ESCAPE) {
          if ((c == 0x08) || (c == 0x7f)) {
             // backspace key
 
-            if ((virtualCursorChar == 0) && (virtualCursorLine != 0)) {
+            if ((virtualCursorChar == 0) && (virtualCursorLine == 0)) {
+               // at the start of the very first line, do nothing
+               updateType = UPDATE_NONE;
+            } else if ((virtualCursorChar == 0) && (virtualCursorLine != 0)) {
                // at start of a line which is not the first line, append this line to the previous line
                virtualCursorChar = file.at(virtualCursorLine - 1).length(); // special case to get preceeding line length
                file.at(virtualCursorLine - 1).append(file.at(virtualCursorLine));
@@ -61,6 +78,10 @@ int main(void) {
                // within a line, just delete the caracter preceeding it
                file.at(virtualCursorLine).erase(file.at(virtualCursorLine).begin() + virtualCursorChar - 1);
                virtualCursorChar--;
+
+               // if this cursor is within the last subline of the line, then we can do a subline update.
+               // (Since this takes place AFTER the decrement, the 3 char gap between rt.cols takes care of possible wrap problems with a subline update.)
+               if (((virtualCursorChar % rt.cols) < (rt.cols - 3)) && (file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols)) updateType = UPDATE_SUBLINE;
             }
          } else if ((c == 10) || (c == 13)) {
             // enter key
@@ -78,7 +99,13 @@ int main(void) {
          } else {
             // emplace character at current position
             file.at(virtualCursorLine).insert(file.at(virtualCursorLine).begin() + virtualCursorChar, c);
-            virtualCursorChar++; 
+
+            // if the cursor is within the last subline of the line, then we can do a subline update.
+            // (Since this takes place BEFORE increment, the 3 char gap between rt.cols takes care of possible wrap problems with a subline update.)
+            if (((virtualCursorChar % rt.cols) < (rt.cols - 3)) && (file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols)) updateType = UPDATE_SUBLINE;
+
+            // we added a character, so increment the cursor position
+            virtualCursorChar++;
          }
       } else {
          int resultant = resolveEscapeSequence();
@@ -88,41 +115,60 @@ int main(void) {
             if (virtualCursorChar > 0) {
                virtualCursorChar--;
             }
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_RIGHT) {
             // Increment the virtual cursor character position if possible
             // can exceed length by 1 for append position
             if (virtualCursorChar < file.at(virtualCursorLine).length()) {
                virtualCursorChar++;
             }
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_UP) {
             // decrement the virtual line position if possible
             if (virtualCursorLine > 0) {
                virtualCursorLine--;
                virtualCursorChar = 0;
             }
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_DOWN) {
             // increment the virtual cursor character position if possible
             if (virtualCursorLine < (file.size() - 1)) {
                virtualCursorLine++;
                virtualCursorChar = 0;
             }
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_HOME) {
             virtualCursorChar = 0;
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_END) {
             virtualCursorChar = file.at(virtualCursorLine).length();
+
+            // Nothing has changed, so suggest no display update (scroll routine will have final say)
+            updateType = SUGGEST_NONE;
          } else if (resultant == KEY_F8) {
             rt.resetTerminal();
             exit(0);
          }
       }
 
-      rt.moveCursor(0,0);
-
       // Ensure that the virtualCursorLine is within range of startLine
 
       // top bound
       if (virtualCursorLine < startLine) {
          startLine = virtualCursorLine;
+
+         // need to scroll
+         if (updateType == SUGGEST_NONE) updateType = UPDATE_ALL;
       }
 
       // bottom bound
@@ -138,12 +184,18 @@ int main(void) {
          if ((screen_lines_from_top) >= (rt.lines - 1)) {
             startLine = i;
             startCursor = ((screen_lines_from_top) - (rt.lines - 1)) * rt.cols;
+
+            // need to scroll
+            if (updateType == SUGGEST_NONE) updateType = UPDATE_ALL;
             break;
          }
 
          // exit before it wraps around if startLine is 0
          if (i == 0) break;
       }
+
+      // accept update suggestion if they got through the filter
+      if (updateType == SUGGEST_NONE) updateType = UPDATE_NONE;
 
       // adjust for when editing a long line
       if (virtualCursorChar > rt.cols) {
@@ -157,30 +209,79 @@ int main(void) {
          screen_lines_from_top -= (startCursor / rt.cols);
       }
       
+      // determine what, if anything, needs to be updated
+      if (updateType == UPDATE_ALL) {
+         // redisplay the file with changes
+         updateDisplay(startLine, startCursor, file);
+      } else if (updateType == UPDATE_SUBLINE) {
+         // update just the line of the virtual cursor
+         updateLine(screen_lines_from_top, virtualCursorLine, virtualCursorChar, file);
+      } else if (updateType == UPDATE_NONE) {
+         // update nothing
+      }   
 
-      size_t curScreenLine = 0;
-      size_t curFileLine = 0;
-      size_t timesOnLine = startCursor / rt.cols;
-      for (; (curScreenLine < (rt.lines - 1)) && ((curFileLine + startLine) < file.size()); curScreenLine++) {
-         // print the next line of text
-         cout << setw(rt.cols) << left << file.at(startLine + curFileLine).substr(timesOnLine * rt.cols, rt.cols);
-
-         // check if we need to stay on this file line for the next screen line
-         if ((file.at(startLine + curFileLine).length() - (timesOnLine * rt.cols)) > rt.cols) {
-            timesOnLine++;
-         } else {
-            // we're done with this file line
-            timesOnLine = 0;
-            curFileLine++;
-         }
-      }
-
-      // handle overflow
-      for (; curScreenLine < (rt.lines - 1); curScreenLine++) {
-         cout << string(rt.cols, ' ');
-      }
-
+      // place the cursor at the proper location
       rt.moveCursor(screen_lines_from_top + (virtualCursorChar / rt.cols), virtualCursorChar % rt.cols);
    }
+}
+
+/**
+ * @function updateDisplay
+ * As a side effect, destroys cursor location.
+ * @param {size_t} startLine - the line of the file to start from
+ * @param {size_t} startCursor - the character of the line of the file to start from
+ * @param {vector<string>} file - the file to display
+ */
+void updateDisplay(const size_t &startLine, const size_t &startCursor, const vector<string> &file) {
+   size_t curScreenLine = 0;
+   size_t curFileLine = 0;
+   size_t timesOnLine = startCursor / rt.cols;
+   ostringstream buffer;
+
+   for (; (curScreenLine < (rt.lines - 1)) && ((curFileLine + startLine) < file.size()); curScreenLine++) {
+      // print the next line of text
+      buffer << setw(rt.cols) << left << file.at(startLine + curFileLine).substr(timesOnLine * rt.cols, rt.cols);
+
+      // check if we need to stay on this file line for the next screen line
+      if ((file.at(startLine + curFileLine).length() - (timesOnLine * rt.cols)) > rt.cols) {
+         timesOnLine++;
+      } else {
+         // we're done with this file line
+         timesOnLine = 0;
+         curFileLine++;
+      }
+   }
+
+   // handle screen area after the file ends
+   for (; curScreenLine < (rt.lines - 1); curScreenLine++) {
+      buffer << string(rt.cols, ' ');
+   }
+
+   rt.moveCursor(0,0);
+   
+   // performance improvement by bliting the text at the end, probably.
+   rt.hideCursor();
+   cout << buffer.str();
+   rt.showCursor();
+}
+
+/**
+ * @function updateLine
+ * As a side effect, destroys cursor location.
+ * @param {size_t} screen_lines_from_top - the line on the screen to update
+ * @param {size_t} virtualCursorLine - the line of the file to use as reference
+ * @param {size_t} virtualCursorChar - the character of the line that the cursor is at
+ * @param {vector<string>} file - the file to display
+ */
+void updateLine(const size_t &screen_lines_from_top, const size_t &virtualCursorLine, const size_t &virtualCursorChar, vector<string> &file) {
+   // move to the start of the line
+   rt.moveCursor(screen_lines_from_top + (virtualCursorChar / rt.cols), 0);
+   
+   cout << setw(rt.cols) << left << file.at(virtualCursorLine).substr((virtualCursorChar / rt.cols) * rt.cols, rt.cols);
+}
+
+void drawFunctionlabels() {
+   //ui.drawFunctionLabels("F1=Find", "F2=Load", "F3=Save", "", "F5=Copy", "F6=Cut", "F7=Select", "F8=Exit");
+   ui.drawFunctionLabels("", "", "", "", "", "", "", "F8=Exit");
 }
 

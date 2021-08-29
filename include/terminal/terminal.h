@@ -41,6 +41,8 @@ class terminal {
       string sRestoreCursor;
       string sChangeScroll;
       string sResetTerminal;
+      string sHideCursor;
+      string sShowCursor;
       
       string ToHex(const string&, const bool); /* for debugging */
       string processUnescapedSequence(const string, const int, const int);
@@ -61,6 +63,8 @@ class terminal {
       void restoreCursor();
       void changeScrollRegion(const int, const int);
       void resetTerminal();
+      void hideCursor();
+      void showCursor();
       
       string getReverse();
       string getResetAttributes();
@@ -96,6 +100,12 @@ terminal::terminal() {
 
    // Get the control sequence for resetting the terminal
    sResetTerminal = exec("tput reset");
+
+   // Get the control sequence for hiding the cursor
+   sHideCursor = exec("tput civis");
+
+   // Get the control sequence for showing the cursor
+   sShowCursor = exec("tput cnorm");
    
    // Get the dimensions of the terminal
    updateDimensions();
@@ -258,6 +268,22 @@ void terminal::changeScrollRegion(const int firstline, const int lastline) {
  */
 void terminal::resetTerminal() {
    cout << sResetTerminal;
+}
+
+/**
+ * @method hideCursor
+ * Hides the cursor.
+ */
+void terminal::hideCursor() {
+   cout << sHideCursor;
+}
+
+/**
+ * @method showCursor
+ * Shows the cursor.
+ */
+void terminal::showCursor() {
+   cout << sShowCursor;
 }
 
 /**
