@@ -157,26 +157,26 @@ int resolveEscapeSequence() {
       "", "", "", ""
    };
 
-   cout << "Sequence:";
+   //cout << "Sequence:";
 
    while (matches > 0) {
       matches = 0;
       
       // Get another character
       sequence += getch();
-      cout << sequence[sequence.length() - 1];
+      //cout << sequence[sequence.length() - 1];
       
       for (size_t i = 0; i < (sizeof(candidates)/sizeof(candidates[0])); i++) {
          if (candidates[i].find(sequence) != string::npos) {
             matches++;
             if (candidates[i].length() == sequence.length()) {
-               cout << endl;
+               //cout << endl;
                return i % 24;
             }
          }
       }
    }
-   cout << " abort" << endl;
+   //cout << " abort" << endl;
    return -1;
 }
 

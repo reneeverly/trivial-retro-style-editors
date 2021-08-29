@@ -12,10 +12,13 @@ LIBRARYFILES = include/terminal/terminal.h include/terminal/tui.h include/termin
 CC = g++
 DIRS = build
 
-all: build/demo
+all: build/demo build/text
 
 build/demo: src/demo/main.cpp $(LIBRARYFILES)
 	$(CC) $(CXXFLAGS) -o build/demo src/demo/main.cpp $(LIBRARYFLAGS)
+
+build/text: src/text/main.cpp $(LIBRARYFILES)
+	$(CC) $(CXXFLAGS) -o build/text src/text/main.cpp $(LIBRARYFLAGS)
 
 clean:
 	rm build/*
