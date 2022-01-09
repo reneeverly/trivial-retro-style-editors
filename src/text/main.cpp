@@ -88,7 +88,7 @@ int main(void) {
 
                // if this cursor is within the last subline of the line, then we can do a subline update.
                // (Since this takes place AFTER the decrement, the 3 char gap between rt.cols takes care of possible wrap problems with a subline update.)
-               if (((virtualCursorChar % rt.cols) < (rt.cols - 3)) && (file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols)) updateType = UPDATE_SUBLINE;
+               if (((virtualCursorChar % rt.cols) > 3) && ((virtualCursorChar % rt.cols) < (rt.cols - 3)) && ((file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols))) updateType = UPDATE_SUBLINE;
             }
          } else if ((c == 10) || (c == 13)) {
             // enter key
@@ -109,7 +109,8 @@ int main(void) {
 
             // if the cursor is within the last subline of the line, then we can do a subline update.
             // (Since this takes place BEFORE increment, the 3 char gap between rt.cols takes care of possible wrap problems with a subline update.)
-            if (((virtualCursorChar % rt.cols) < (rt.cols - 3)) && (file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols)) updateType = UPDATE_SUBLINE;
+            // note that, unline backspace, we have to do the opposite cursor position check.
+            if (((virtualCursorChar % rt.cols) > 3) && ((virtualCursorChar % rt.cols) < (rt.cols - 3)) && (file.at(virtualCursorLine).length() / rt.cols) == (virtualCursorChar / rt.cols)) updateType = UPDATE_SUBLINE;
 
             // we added a character, so increment the cursor position
             virtualCursorChar++;
