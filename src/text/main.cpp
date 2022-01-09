@@ -18,8 +18,12 @@
 // ifnore utf8 for now :(
 //#include "../../include/misc/basic_utf8.h"
 
+// basics
 #include <vector>
 #include <sstream>
+
+// file io
+#include <fstream>
 
 using namespace std;
 
@@ -41,6 +45,9 @@ void updateLine(const size_t &screen_lines_from_top, const size_t &virtualCursor
 
 int main(void) {
    rt.clear();
+   rt.moveCursor(rt.lines - 1, 0);
+   drawFunctionLabels();
+   rt.moveCursor(0, 0);
 
    vector<string> file;
 
@@ -156,8 +163,52 @@ int main(void) {
             // Nothing has changed, so suggest no display update (scroll routine will have final say)
             updateType = SUGGEST_NONE;
          } else if (resultant == KEY_F8) {
+            // exit
             rt.resetTerminal();
             exit(0);
+         } else if (resultant == KEY_F3) {
+            // save file
+
+            // prompt for file name
+            rt.moveCursor(rt.lines - 2, 0);
+            cout << setw(rt.cols) << left << "Save to: ";
+            rt.moveCursor(rt.lines - 2, 9);
+
+            // loop for file name
+            string filename = "";
+            while (true) {
+               c = getch();
+               
+               if (c && c != LITERAL_KEY_ESCAPE) {
+                  if ((c == 0x08) || (c == 0x7f)) {
+                     if (filename.length() > 0) {
+                        filename.pop_back();
+                        cout << (char)0x08 << ' ' << (char)0x08;
+                     }
+                  } else if ((c == 10) || (c == 13)) {
+                     // open the file and write to it!
+                     std::ofstream outfile;
+                     outfile.open(filename, ios_base::trunc);
+                     for (size_t i = 0; i < file.size(); i++) {
+                        outfile << file.at(i) << endl;
+                     }
+                     outfile.close();
+                     break;
+                  } else {
+                     filename.push_back(c);
+                     cout << (char)c;
+                  }
+               } else {
+                  resultant = resolveEscapeSequence();
+                  if (resultant == KEY_F8) {
+                     // cancel the save
+                     break;
+                  }
+               }
+            }
+
+            // We overlapped a line in the file
+            updateType = UPDATE_ALL;
          }
       }
 
@@ -280,8 +331,8 @@ void updateLine(const size_t &screen_lines_from_top, const size_t &virtualCursor
    cout << setw(rt.cols) << left << file.at(virtualCursorLine).substr((virtualCursorChar / rt.cols) * rt.cols, rt.cols);
 }
 
-void drawFunctionlabels() {
+void drawFunctionLabels() {
    //ui.drawFunctionLabels("F1=Find", "F2=Load", "F3=Save", "", "F5=Copy", "F6=Cut", "F7=Select", "F8=Exit");
-   ui.drawFunctionLabels("", "", "", "", "", "", "", "F8=Exit");
+   ui.drawFunctionLabels("", "", "F3=Save", "", "", "", "", "F8=Exit");
 }
 
