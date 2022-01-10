@@ -284,14 +284,16 @@ int main(void) {
  * @param {vector<string>} file - the file to display
  */
 void updateDisplay(const size_t &startLine, const size_t &startCursor, const vector<string> &file) {
+   // ostringstream was causing a memory leak.  Reverted to cout and no bliting.
    size_t curScreenLine = 0;
    size_t curFileLine = 0;
    size_t timesOnLine = startCursor / rt.cols;
-   ostringstream buffer;
+   rt.hideCursor();
+   rt.moveCursor(0,0);
 
    for (; (curScreenLine < (rt.lines - 1)) && ((curFileLine + startLine) < file.size()); curScreenLine++) {
       // print the next line of text
-      buffer << setw(rt.cols) << left << file.at(startLine + curFileLine).substr(timesOnLine * rt.cols, rt.cols);
+      cout << setw(rt.cols) << left << file.at(startLine + curFileLine).substr(timesOnLine * rt.cols, rt.cols);
 
       // check if we need to stay on this file line for the next screen line
       if ((file.at(startLine + curFileLine).length() - (timesOnLine * rt.cols)) > rt.cols) {
@@ -304,16 +306,13 @@ void updateDisplay(const size_t &startLine, const size_t &startCursor, const vec
    }
 
    // handle screen area after the file ends
+   string blankline (rt.cols, ' ');
    for (; curScreenLine < (rt.lines - 1); curScreenLine++) {
-      buffer << string(rt.cols, ' ');
+      cout << blankline;
    }
-
-   rt.moveCursor(0,0);
    
-   // performance improvement by bliting the text at the end, probably.
-   rt.hideCursor();
-   cout << buffer.str();
    rt.showCursor();
+
 }
 
 /**
