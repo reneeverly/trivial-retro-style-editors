@@ -269,7 +269,7 @@ int main(void) {
          updateLine(screen_lines_from_top, virtualCursorLine, virtualCursorChar, file);
       } else if (updateType == UPDATE_NONE) {
          // update nothing
-      }   
+      }
 
       // place the cursor at the proper location
       rt.moveCursor(screen_lines_from_top + (virtualCursorChar / rt.cols), virtualCursorChar % rt.cols);

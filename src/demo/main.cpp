@@ -49,8 +49,11 @@ int main(void) {
             cout << "Page Up!" << endl;
          } else if (resultant == KEY_PGDN) {
             cout << "Page Down!" << endl;
+         } else if (resultant == KEY_F1) {
+            cout << "F1!" << endl;
          }
       }
    }
+
 }
          

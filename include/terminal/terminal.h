@@ -43,6 +43,8 @@ class terminal {
       string sResetTerminal;
       string sHideCursor;
       string sShowCursor;
+
+      stack<int> pStack;
       
       string ToHex(const string&, const bool); /* for debugging */
       string processUnescapedSequence(const string, const int, const int);
@@ -186,7 +188,6 @@ string terminal::processUnescapedSequence(const string originalSequence, const i
    }
    
    // Filter through parameters and printing them
-   stack<int> pStack;
    size_t nextP = swap.find("%p");
    size_t nextD = swap.find("%d");
    while ((nextP != string::npos) || (nextD != string::npos)) {
@@ -205,6 +206,12 @@ string terminal::processUnescapedSequence(const string originalSequence, const i
       nextP = swap.find("%p");
       nextD = swap.find("%d");
    }
+
+   // clear out stack
+   while (!pStack.empty()) {
+      pStack.pop();
+   }
+
    return swap;
 }
 
